@@ -3,3 +3,4 @@ data/PDvsSWEDD
 data/SWEDDvsNC
 logs/*
 saved_models/*
+runs/*
