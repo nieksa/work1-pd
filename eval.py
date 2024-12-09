@@ -9,7 +9,7 @@ def eval_model(model, dataloader, device, epoch):
     model.eval()
     all_labels = []
     all_preds = []
-
+    all_probs = []
     with torch.no_grad():
         for data in dataloader:
             inputs, labels = data
@@ -17,14 +17,16 @@ def eval_model(model, dataloader, device, epoch):
 
             # 模型推理
             outputs = model(inputs)
+            probs = outputs.softmax(dim=1)
             _, preds = torch.max(outputs, 1)
 
             all_labels.extend(labels.cpu().numpy())
             all_preds.extend(preds.cpu().numpy())
+            all_probs.extend(probs.cpu().numpy())
 
     all_labels = torch.tensor(all_labels)
     all_preds = torch.tensor(all_preds)
-
+    all_probs = torch.tensor(all_probs)
     cm = confusion_matrix(all_labels, all_preds)
 
     accuracy = accuracy_score(all_labels, all_preds)
@@ -32,7 +34,7 @@ def eval_model(model, dataloader, device, epoch):
     kappa = cohen_kappa_score(all_labels, all_preds)
 
     try:
-        auc = roc_auc_score(all_labels, all_preds, average='macro', multi_class='ovr')
+        auc = roc_auc_score(all_labels, all_probs, average='macro', multi_class='ovr')
     except ValueError:
         auc = 0.0
 

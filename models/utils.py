@@ -2,7 +2,7 @@
 import torch
 from monai.networks.nets.classifier import Classifier, Discriminator, Critic
 # from mamba_ssm import Mamba
-from design1 import ViT
+from .design1 import ViT
 def create_model(model_name):
     if model_name == 'Classifier':
         model = Classifier(
