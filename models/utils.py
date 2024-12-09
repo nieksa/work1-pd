@@ -1,7 +1,8 @@
 # 上面导入各式各样的model，同时在这里就写死参数
+import torch
 from monai.networks.nets.classifier import Classifier, Discriminator, Critic
 # from mamba_ssm import Mamba
-from .design1 import ViT
+from design1 import ViT
 def create_model(model_name):
     if model_name == 'Classifier':
         model = Classifier(
@@ -24,3 +25,11 @@ def create_model(model_name):
     else:
         raise ValueError(f'Unsupported model: {model_name}')
     return model
+
+if __name__ == '__main__':
+    model = create_model('ViT')
+    x = torch.rand(4, 1, 128, 128, 128)
+    label = torch.randint(0, 2, (4,))
+    out = model(x)
+    print(label)
+    print(out)
