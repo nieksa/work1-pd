@@ -15,26 +15,14 @@ from vgg import VGG
 
 
 def create_model(model_name):
-    if model_name == 'Classifier':
-        model = Classifier(
-            in_shape = (128, 128, 128),
-            classes = 2,
-            channels = (32, 64, 128),
-            strides = (1, 2, 2),
-            kernel_size = 3,
-            num_res_units = 2,
-            dropout = 0.1,
-            bias = True,
-            last_act = None,
-        )
-    elif model_name == 'ViT':
+    if model_name == 'ViT':
         model = ViT(image_size=128, image_patch_size=16, frames=128, frame_patch_size=16,
                     num_classes=2, dim=1024, depth=2, heads=4, mlp_dim=64, pool='cls',
                     channels=1, dim_head=32, dropout=0.2, emb_dropout=0.1)
-    elif model_name == 'ResNet18':
-        model = ResNet(BasicBlock, [2, 2, 2, 2], get_inplanes(), n_input_channels=1, n_classes=2)
-    elif model_name == 'ResNet50':
-        model = ResNet(Bottleneck, [3, 4, 6, 3], get_inplanes(), n_input_channels=1, n_classes=2)
+    # elif model_name == 'ResNet18':
+    #     model = ResNet(BasicBlock, [2, 2, 2, 2], get_inplanes(), n_input_channels=1, n_classes=2)
+    # elif model_name == 'ResNet50':
+    #     model = ResNet(Bottleneck, [3, 4, 6, 3], get_inplanes(), n_input_channels=1, n_classes=2)
     elif model_name == 'C3D':
         model = C3D(num_classes=2)
     elif model_name == 'I3D':
@@ -50,10 +38,10 @@ def create_model(model_name):
                          growth_rate=32,
                          block_config=(6, 12, 24, 16),
                          n_input_channels=1, num_classes=2)
-    elif model_name == 'SlowFast':
-        model = SlowFast(layers=[3, 4, 6, 3], class_num=2, dropout=0.5)
-    elif model_name == 'VGG':
-        model = VGG(dropout=0.5, n_classes=2)
+    # elif model_name == 'SlowFast':
+    #     model = SlowFast(layers=[3, 4, 6, 3], class_num=2, dropout=0.5)
+    # elif model_name == 'VGG':
+    #     model = VGG(dropout=0.5, n_classes=2)
     elif model_name == 'cct4':
         model = cct_4(img_size=128, num_frames=128, num_classes=2, n_input_channels= 1)
     elif model_name == 'ViViT':
