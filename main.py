@@ -22,6 +22,8 @@ parser.add_argument('--seed', type=int, default=1337, help='Random seed for repr
 parser.add_argument('--device_ids', nargs='+', type=int, default=[0], help='List of device IDs to use.')
 parser.add_argument('--model_name', type=str, default='ViT', help='Name of the model to use.')
 parser.add_argument('--task', type=str, default='PDvsNC', choices = ['PDvsNC', 'PDvsSWEDD', 'NCvsSWEDD'])
+parser.add_argument('--train_bs', type=int, default=16, help='I3D C3D cuda out of memory.')
+parser.add_argument('--val_bs', type=int, default=16, help='densenet cuda out of memory.')
 
 args = parser.parse_args()
 
@@ -49,15 +51,20 @@ logging.basicConfig(
 
 logging.info(f"Training with {device}")
 logging.info(f"Model: {args.model_name}")
-all_metrics = {metric: [] for metric in ['accuracy', 'balanced_accuracy', 'kappa', 'auc', 'f1', 'precision', 'recall', 'specificity']}
-for n in range(2):
+logging.info(f"Task: {args.task}")
+all_metrics = {metric: [] for metric in ['accuracy', 'balanced_accuracy', 'kappa', 'auc', 'f1',
+                                         'precision', 'recall', 'specificity']}
+for n in range(5):
     logging.info(f'Fold {n+1} Starting')
 
-    train_dataset, val_dataset, train_loader, val_loader = load_data(args, n=0, batch_size_train=2, batch_size_val=2,
-                                                                     test = True)
+    train_dataset, val_dataset, train_loader, val_loader = load_data(args, n=0,
+                                                                     batch_size_train=args.train_bs,
+                                                                     batch_size_val=args.val_bs,
+                                                                     test = False)
     loss_function = torch.nn.CrossEntropyLoss()
     
     model = create_model(args.model_name).to(device)
+
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     scheduler = StepLR(optimizer, step_size=15, gamma=0.8)
 

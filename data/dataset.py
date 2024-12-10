@@ -25,7 +25,7 @@ class MRIDataset(Dataset):
         return len(self.x)
 
 
-def load_data(args, n=0, batch_size_train=2, batch_size_val=1, test = False):
+def load_data(args, n=0, batch_size_train=16, batch_size_val=16, test = False):
     """
     加载数据并返回 DataLoader
     :param args: 任务参数
