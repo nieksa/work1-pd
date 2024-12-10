@@ -42,24 +42,24 @@ def create_model(model_name):
     #     model = SlowFast(layers=[3, 4, 6, 3], class_num=2, dropout=0.5)
     # elif model_name == 'VGG':
     #     model = VGG(dropout=0.5, n_classes=2)
-    elif model_name == 'cct4':
+    elif model_name == 'cct4': #复杂度高，4090 24G 跑不了
         model = cct_4(img_size=128, num_frames=128, num_classes=2, n_input_channels= 1)
-    elif model_name == 'ViViT':
-        model = ViViT(
-            image_size=128,  # image size
-            frames=128,  # number of frames
-            image_patch_size=16,  # image patch size
-            frame_patch_size=2,  # frame patch size
-            num_classes=2,
-            dim=512,
-            spatial_depth=5,  # depth of the spatial transformer
-            temporal_depth=5,  # depth of the temporal transformer
-            heads=5,
-            mlp_dim=1024,
-            channels = 1,
-            variant='factorized_encoder',  # or 'factorized_self_attention'
-        )
-    elif model_name == 'SimpleViT':
+    # elif model_name == 'ViViT': # 效果不是很好，不知道是不是参数的问题
+    #     model = ViViT(
+    #         image_size=128,  # image size
+    #         frames=128,  # number of frames
+    #         image_patch_size=16,  # image patch size
+    #         frame_patch_size=2,  # frame patch size
+    #         num_classes=2,
+    #         dim=512,
+    #         spatial_depth=5,  # depth of the spatial transformer
+    #         temporal_depth=5,  # depth of the temporal transformer
+    #         heads=5,
+    #         mlp_dim=1024,
+    #         channels = 1,
+    #         variant='factorized_encoder',  # or 'factorized_self_attention'
+    #     )
+    elif model_name == 'SimpleViT': #复杂度高，4090 24G 跑不了
         model = SimpleViT(
             image_size = 128,          # image size
             frames = 128,               # number of frames

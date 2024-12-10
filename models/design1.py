@@ -373,13 +373,14 @@ class CCT(nn.Module):
         x = self.tokenizer(x)
         return self.classifier(x)
 
-model = cct_2(img_size=128, num_frames=8, num_classes=2, n_input_channels= 1)
+if __name__ == '__main__':
+    model = cct_2(img_size=128, num_frames=8, num_classes=2, n_input_channels= 1)
 
-x = torch.rand(2, 1, 8, 128, 128)
-label = torch.randint(0, 2, (4,))
+    x = torch.rand(2, 1, 8, 128, 128)
+    label = torch.randint(0, 2, (4,))
 
-out = model(x)
+    out = model(x)
 
-print(label)
-print(out)
-print(out.shape)
+    print(label)
+    print(out)
+    print(out.shape)
