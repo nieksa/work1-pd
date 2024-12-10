@@ -30,19 +30,20 @@ def eval_model(model, dataloader, device, epoch):
     cm = confusion_matrix(all_labels, all_preds)
 
     accuracy = accuracy_score(all_labels, all_preds)
-    balanced_accuracy = balanced_accuracy_score(all_labels, all_preds)
+
     kappa = cohen_kappa_score(all_labels, all_preds)
 
     try:
-        auc = roc_auc_score(all_labels, all_probs, average='macro', multi_class='ovr')
+        auc = roc_auc_score(all_labels, all_probs[:,1], average='macro', multi_class='ovr')
     except ValueError:
         auc = 0.0
 
     f1 = f1_score(all_labels, all_preds, average='macro')
-    precision = precision_score(all_labels, all_preds, average='macro')
+    precision = precision_score(all_labels, all_preds, average='macro', zero_division=0)
     recall = recall_score(all_labels, all_preds, average='macro')
     specificity = cm[1, 1] / (cm[1, 1] + cm[1, 0]) if cm.shape == (2, 2) else 0.0  # 计算特异性
-
+    # balanced_accuracy = balanced_accuracy_score(all_labels, all_preds)
+    balanced_accuracy = (recall + specificity) / 2
     avg_metrics = {
         'accuracy': accuracy,
         'balanced_accuracy': balanced_accuracy,
@@ -69,15 +70,15 @@ def eval_model(model, dataloader, device, epoch):
 
 
 def save_best_model(model, eval_metric, best_metric, best_metric_model, model_name, timestamp, fold, epoch, metric_name):
-    if eval_metric[metric_name] > best_metric[metric_name]:
+    if eval_metric[metric_name] >= best_metric[metric_name]:
         best_metric[metric_name] = eval_metric[metric_name]
         model_path = f'./saved_models/{model_name}_{timestamp}_fold_{fold}_epoch_{epoch}_{metric_name}_{best_metric[metric_name]:.2f}.pth'
         if metric_name in best_metric_model and best_metric_model[metric_name]:
             old_model_path = best_metric_model[metric_name]
             if os.path.exists(old_model_path):
-                print(f'Deleting old model: {old_model_path}')
+                # print(f'Deleting old model: {old_model_path}')
                 os.remove(old_model_path)
         best_model = model
         best_metric_model[metric_name] = model_path
         torch.save(best_model.state_dict(),best_metric_model[metric_name])
-        print(f"Saved new best model for {metric_name}: {model_path}")
+        # print(f"Saved new best model for {metric_name}: {model_path}")

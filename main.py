@@ -80,8 +80,8 @@ for n in range(2):
     max_epochs = args.epochs
     val_interval = 1  # 每5个epochs做一次验证
     for epoch in range(max_epochs):
-        print("-" * 10)
-        print(f"epoch {epoch + 1}/{max_epochs}")
+        # print("-" * 10)
+        # print(f"epoch {epoch + 1}/{max_epochs}")
         model.train()
         epoch_loss = 0
         step = 0
@@ -97,12 +97,12 @@ for n in range(2):
             optimizer.step()
             epoch_loss += loss.item()
             epoch_len = len(train_dataset) // train_loader.batch_size
-            print(f"{step}/{epoch_len}, train_loss: {loss.item():.4f}")
+            # print(f"{step}/{epoch_len}, train_loss: {loss.item():.4f}")
             writer.add_scalar("train_loss", loss.item(), epoch_len * epoch + step)
 
         epoch_loss /= step
         epoch_loss_values.append(epoch_loss)
-        print(f"epoch {epoch + 1} average loss: {epoch_loss:.4f}")
+        logging.info(f"epoch {epoch + 1} ---------------------------------------------- average loss: {epoch_loss:.4f}")
 
 
         if (epoch + 1) % val_interval == 0 and (epoch + 1) >= 0:

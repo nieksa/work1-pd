@@ -1,6 +1,6 @@
 data/PDvsNC
 data/PDvsSWEDD
-data/SWEDDvsNC
+data/NCvsSWEDD
 logs/*
 saved_models/*
 runs/*

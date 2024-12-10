@@ -124,7 +124,3 @@ class ViT(nn.Module):
 
         x = self.to_latent(x)
         return self.mlp_head(x)
-
-model = ViT(image_size=128, image_patch_size=16, frames=128, frame_patch_size=16,
-            num_classes=2, dim=128, depth=4, heads=4, mlp_dim=128, pool = 'cls',
-            channels = 1, dim_head = 32, dropout = 0.2, emb_dropout = 0.1)
