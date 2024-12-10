@@ -373,26 +373,7 @@ class CCT(nn.Module):
         x = self.tokenizer(x)
         return self.classifier(x)
 
-# cct = CCT(
-#     img_size = 128,
-#     num_frames = 128,
-#     embedding_dim = 512,
-#     n_input_channels= 1,
-#     n_conv_layers = 2,
-#     frame_kernel_size = 3,
-#     kernel_size = 7,
-#     stride = 2,
-#     padding = 3,
-#     pooling_kernel_size = 3,
-#     pooling_stride = 2,
-#     pooling_padding = 1,
-#     num_layers = 1,
-#     num_heads = 6,
-#     mlp_ratio = 1,
-#     num_classes = 2,
-#     positional_embedding = 'learnable'
-# )
-model = cct_2(img_size=32, num_frames=16, num_classes=10, n_input_channels= 1)
+model = cct_2(img_size=32, num_frames=16, num_classes=2, n_input_channels= 1)
 
 x = torch.rand(2, 1, 16, 32, 32)
 label = torch.randint(0, 2, (4,))
