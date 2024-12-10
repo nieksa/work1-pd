@@ -33,10 +33,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #     torch.backends.cuda.max_split_size_mb = 4096
 
 log_dir = f'./logs/{args.task}'
-if not os.path.exists(log_dir):
-    os.makedirs(log_dir)
-if not os.path.exists('./saved_models/'):
-    os.makedirs('./saved_models/')
+os.makedirs(log_dir, exist_ok=True)
+os.makedirs(f'./saved_models/{args.task}', exist_ok=True)
 
 timestamp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
 log_file = os.path.join(log_dir, f'{args.model_name}_{timestamp}.log')
@@ -108,11 +106,8 @@ for n in range(2):
         if (epoch + 1) % val_interval == 0 and (epoch + 1) >= 0:
             eval_metrics = eval_model(model=model, dataloader=val_loader, device=device, epoch = epoch+1)
 
-            save_best_model(model, eval_metrics, best_metric, best_metric_model, args.model_name, timestamp,
+            save_best_model(model, eval_metrics, best_metric, best_metric_model, args, timestamp,
                             fold=n, epoch=epoch, metric_name='accuracy')
-
-            save_best_model(model, eval_metrics, best_metric, best_metric_model, args.model_name, timestamp,
-                            fold=n, epoch=epoch, metric_name='f1')
 
     avg_metrics = eval_model(model=model, dataloader=val_loader, device=device, epoch='FINAL')
     logging.info(

@@ -26,6 +26,7 @@ def eval_model(model, dataloader, device, epoch):
 
     all_labels = torch.tensor(all_labels)
     all_preds = torch.tensor(all_preds)
+    all_probs = np.array(all_probs)  # 先转换为一个单一的 numpy.ndarray
     all_probs = torch.tensor(all_probs)
     cm = confusion_matrix(all_labels, all_preds)
 
@@ -69,10 +70,12 @@ def eval_model(model, dataloader, device, epoch):
 
 
 
-def save_best_model(model, eval_metric, best_metric, best_metric_model, model_name, timestamp, fold, epoch, metric_name):
+def save_best_model(model, eval_metric, best_metric, best_metric_model, args, timestamp, fold, epoch, metric_name):
+    model_name = args.model_name
+    task = args.task
     if eval_metric[metric_name] >= best_metric[metric_name]:
         best_metric[metric_name] = eval_metric[metric_name]
-        model_path = f'./saved_models/{model_name}_{timestamp}_fold_{fold}_epoch_{epoch}_{metric_name}_{best_metric[metric_name]:.2f}.pth'
+        model_path = f'./saved_models/{task}/{model_name}_{timestamp}_fold_{fold}_epoch_{epoch}_{metric_name}_{best_metric[metric_name]:.2f}.pth'
         if metric_name in best_metric_model and best_metric_model[metric_name]:
             old_model_path = best_metric_model[metric_name]
             if os.path.exists(old_model_path):

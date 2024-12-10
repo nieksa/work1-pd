@@ -1,17 +1,18 @@
-# 上面导入各式各样的model，同时在这里就写死参数
 import torch
 from torch.onnx.symbolic_opset9 import numel
-
-from models.C3D import C3D
 from monai.networks.nets.classifier import Classifier, Discriminator, Critic
-# from mamba_ssm import Mamba
-from design1 import ViT
+from vit_pytorch.vit_3d import ViT
+from vit_pytorch.cct_3d import CCT,cct_4
+from vit_pytorch.vivit import ViT as ViViT
+from vit_pytorch.simple_vit_3d import SimpleViT
+
 from resnet import ResNet, BasicBlock, get_inplanes, Bottleneck
 from C3D import C3D
 from I3D import InceptionI3d
 from densnet import DenseNet
 from slowfast import SlowFast
 from vgg import VGG
+
 
 def create_model(model_name):
     if model_name == 'Classifier':
@@ -22,11 +23,9 @@ def create_model(model_name):
             strides = (1, 2, 2),
             kernel_size = 3,
             num_res_units = 2,
-            # act=Act.PRELU,
-            # norm=Norm.INSTANCE,
             dropout = 0.1,
             bias = True,
-            last_act = 'softmax',
+            last_act = None,
         )
     elif model_name == 'ViT':
         model = ViT(image_size=128, image_patch_size=16, frames=128, frame_patch_size=16,
@@ -55,14 +54,47 @@ def create_model(model_name):
         model = SlowFast(layers=[3, 4, 6, 3], class_num=2, dropout=0.5)
     elif model_name == 'VGG':
         model = VGG(dropout=0.5, n_classes=2)
-
+    elif model_name == 'cct4':
+        model = cct_4(img_size=128, num_frames=128, num_classes=2, n_input_channels= 1)
+    elif model_name == 'ViViT':
+        model = ViViT(
+            image_size=128,  # image size
+            frames=128,  # number of frames
+            image_patch_size=16,  # image patch size
+            frame_patch_size=2,  # frame patch size
+            num_classes=2,
+            dim=512,
+            spatial_depth=5,  # depth of the spatial transformer
+            temporal_depth=5,  # depth of the temporal transformer
+            heads=5,
+            mlp_dim=1024,
+            channels = 1,
+            variant='factorized_encoder',  # or 'factorized_self_attention'
+        )
+    elif model_name == 'SimpleViT':
+        model = SimpleViT(
+            image_size = 128,          # image size
+            frames = 128,               # number of frames
+            image_patch_size = 16,     # image patch size
+            frame_patch_size = 2,      # frame patch size
+            num_classes = 2,
+            dim = 512,
+            depth = 5,
+            heads = 8,
+            mlp_dim = 1024,
+            channels = 1,
+            dim_head = 64
+        )
     else:
         raise ValueError(f'Unsupported model: {model_name}')
     return model
 
 
+# model_name = ['Classifier','ResNet18','ResNet50','C3D','I3D','DenseNet264','DenseNet121','SlowFast','VGG',
+#               'ViT','cct4','ViViT','SimpleViT']
+
 if __name__ == '__main__':
-    model = create_model('VGG')
+    model = create_model('SimpleViT')
     x = torch.rand(4, 1, 128, 128, 128)
     label = torch.randint(0, 2, (4,))
     out = model(x)

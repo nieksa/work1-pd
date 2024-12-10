@@ -126,3 +126,4 @@ class SimpleViT(nn.Module):
 
         x = self.to_latent(x)
         return self.linear_head(x)
+
