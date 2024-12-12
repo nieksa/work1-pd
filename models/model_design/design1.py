@@ -1,6 +1,6 @@
-from classifier import LogisticRegressionClassifier
-from dual_resnet import DualBranchResNet
-from vit import ViT
+from models.model_design.classifier import LogisticRegressionClassifier
+from models.model_design.dual_resnet import DualBranchResNet
+from models.model_design.vit import ViT
 import torch
 import torch.nn as nn
 

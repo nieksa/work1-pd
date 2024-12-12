@@ -25,7 +25,7 @@ class MRIDataset(Dataset):
         return len(self.x)
 
 
-def load_data(args, n=0, batch_size_train=16, batch_size_val=16, test = False):
+def load_data(args, n=0, batch_size_train=16, batch_size_val=16, test = False, num_workers=0):
     """
     加载数据并返回 DataLoader
     :param args: 任务参数
@@ -60,7 +60,7 @@ def load_data(args, n=0, batch_size_train=16, batch_size_val=16, test = False):
     val_dataset = MRIDataset(test_x, test_y, transform=None)
 
     # 创建 DataLoader
-    train_loader = DataLoader(train_dataset, batch_size=batch_size_train, shuffle=True, drop_last=True)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size_val, shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size_train, shuffle=True, drop_last=True, num_workers=num_workers)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size_val, shuffle=False, num_workers=num_workers)
 
     return train_dataset, val_dataset, train_loader, val_loader
