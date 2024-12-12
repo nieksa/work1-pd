@@ -6,12 +6,12 @@ from vit_pytorch.cct_3d import CCT,cct_4
 from vit_pytorch.vivit import ViT as ViViT
 from vit_pytorch.simple_vit_3d import SimpleViT
 
-from resnet import ResNet, BasicBlock, get_inplanes, Bottleneck
-from C3D import C3D
-from I3D import InceptionI3d
-from densnet import DenseNet
-from slowfast import SlowFast
-from vgg import VGG
+from .resnet import ResNet, BasicBlock, get_inplanes, Bottleneck
+from .C3D import C3D
+from .I3D import InceptionI3d
+from .densnet import DenseNet
+from .slowfast import SlowFast
+from .vgg import VGG
 
 
 def create_model(model_name):
