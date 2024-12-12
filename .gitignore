@@ -4,3 +4,5 @@ data/NCvsSWEDD
 logs/*
 saved_models/*
 runs/*
+*.sh
+*.whl
