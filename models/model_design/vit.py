@@ -1,17 +1,11 @@
 import torch
-from torch import nn
-
-from einops import rearrange, repeat
+import torch.nn as nn
+import torch.nn.functional as F
 from einops.layers.torch import Rearrange
-
-
-# helpers
+from einops import rearrange, repeat
 
 def pair(t):
     return t if isinstance(t, tuple) else (t, t)
-
-# classes
-
 class FeedForward(nn.Module):
     def __init__(self, dim, hidden_dim, dropout = 0.):
         super().__init__()
@@ -74,9 +68,34 @@ class Transformer(nn.Module):
             x = attn(x) + x
             x = ff(x) + x
         return x
+        
+class ChannelAttention(nn.Module):
+    def __init__(self, channel, reduction=16):
+        super(ChannelAttention, self).__init__()
+        self.fc1 = nn.Linear(channel, channel // reduction)  # 压缩维度
+        self.relu = nn.ReLU(inplace=True)
+        self.fc2 = nn.Linear(channel // reduction, channel)  # 恢复维度
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        b, c, t = x.size()
+        y = F.adaptive_avg_pool1d(x, 1)
+        y = y.view(b, c)
+        y = self.fc1(y)
+        y = self.relu(y)
+        y = self.fc2(y)
+        y = self.sigmoid(y).view(b, c, 1)
+
+        x = x * y  # 结果 (b, c, t)
+
+        x = x.sum(dim=1, keepdim=True)
+        x = x.squeeze(dim=1)
+        return x
 
 class ViT(nn.Module):
-    def __init__(self, *, image_size, image_patch_size, frames, frame_patch_size, num_classes, dim, depth, heads, mlp_dim, pool = 'cls', channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0.):
+
+    def __init__(self, *, image_size=32, image_patch_size=4, frames=32, frame_patch_size=4, dim=64,
+                 depth=3, heads=4, mlp_dim=64, pool='cls', channels=256, dim_head=32, dropout=0.2, emb_dropout=0.1):
         super().__init__()
         image_height, image_width = pair(image_size)
         patch_height, patch_width = pair(image_patch_size)
@@ -103,25 +122,26 @@ class ViT(nn.Module):
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout)
 
         self.pool = pool
+        self.ca = ChannelAttention(channel=2*channels+1)
         self.to_latent = nn.Identity()
-
-        self.mlp_head = nn.Sequential(
-            nn.LayerNorm(dim),
-            nn.Linear(dim, num_classes)
-        )
 
     def forward(self, video):
         x = self.to_patch_embedding(video)
         b, n, _ = x.shape
-
         cls_tokens = repeat(self.cls_token, '1 1 d -> b 1 d', b = b)
         x = torch.cat((cls_tokens, x), dim=1)
         x += self.pos_embedding[:, :(n + 1)]
         x = self.dropout(x)
-
         x = self.transformer(x)
-
-        x = x.mean(dim = 1) if self.pool == 'mean' else x[:, 0]
-
         x = self.to_latent(x)
-        return self.mlp_head(x)
+        x = self.ca(x)
+        return x
+
+if __name__ == "__main__":
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model = ViT(channels=256).to(device)
+
+    for i in range(1):
+        input_tensor = torch.randn(16, 256, 32, 32, 32).to(device)
+        output = model(input_tensor)
+        print(output.shape)

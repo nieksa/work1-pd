@@ -12,6 +12,7 @@ from .I3D import InceptionI3d
 from .densnet import DenseNet
 from .slowfast import SlowFast
 from .vgg import VGG
+from model_design import Design1
 
 
 def create_model(model_name):
@@ -73,6 +74,8 @@ def create_model(model_name):
             channels = 1,
             dim_head = 64
         )
+    elif model_name == 'Design1':
+        model = Design1(in_channels=1, out_channel=128, class_num=2, num_blocks=[1,1,1])
     else:
         raise ValueError(f'Unsupported model: {model_name}')
     return model
