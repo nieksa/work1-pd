@@ -70,7 +70,7 @@ for n in range(5):
         logging.info(f"epoch {epoch + 1} ---------------------------------------------- average loss: {epoch_loss:.4f}")
 
 
-        if (epoch + 1) % val_interval == 0 and (epoch + 1) >= 0:
+        if (epoch + 1) % val_interval == 0 and (epoch + 1) >= 30:
             eval_metrics = eval_model(model=model, dataloader=val_loader, device=device, epoch = epoch+1)
 
             save_best_model(model, eval_metrics, best_metric, best_metric_model, args, timestamp,
