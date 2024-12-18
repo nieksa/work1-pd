@@ -13,7 +13,7 @@ from models.compare.densnet import DenseNet
 from models.compare.resnet import ResNet, Bottleneck, BasicBlock, get_inplanes
 from models.compare.vgg import VGG
 
-from models.model_design import Design1, Design2
+from models.model_design import Design1, Design2, generate_resnet_coordatt, generate_resnet_coordatt_vit
 
 
 def create_model(model_name):
@@ -21,8 +21,8 @@ def create_model(model_name):
         model = ViT(image_size=128, image_patch_size=16, frames=128, frame_patch_size=16,
                     num_classes=2, dim=1024, depth=2, heads=4, mlp_dim=64, pool='cls',
                     channels=1, dim_head=32, dropout=0.2, emb_dropout=0.1)
-    elif model_name == 'ResNet18':
-        model = ResNet(BasicBlock, [2, 2, 2, 2], get_inplanes(), n_input_channels=1, n_classes=2)
+    # elif model_name == 'ResNet18':
+    #     model = ResNet(BasicBlock, [2, 2, 2, 2], get_inplanes(), n_input_channels=1, n_classes=2)
     # elif model_name == 'ResNet50':
     #     model = ResNet(Bottleneck, [3, 4, 6, 3], get_inplanes(), n_input_channels=1, n_classes=2)
     elif model_name == 'ViViT': # 效果不是很好，不知道是不是参数的问题
@@ -61,7 +61,6 @@ def create_model(model_name):
     #                      n_input_channels=1, num_classes=2)
     elif model_name == 'cct4': #复杂度高，4090 24G 跑不了
         model = cct_4(img_size=128, num_frames=128, num_classes=2, n_input_channels= 1)
-
     # elif model_name == 'SimpleViT': #复杂度高，4090 24G 跑不了
     #     model = SimpleViT(
     #         image_size = 128,          # image size
@@ -76,10 +75,14 @@ def create_model(model_name):
     #         channels = 1,
     #         dim_head = 64
     #     )
-    elif model_name == 'Design1':
+    elif model_name == 'Design1':   # 双重ResNet，提取大体素和小体素特征， concat后ViT，这个模型太大跑不动
         model = Design1(in_channels=1, out_channel=128, class_num=2, num_blocks=[1,1,1])
-    elif model_name == 'Design2':
+    elif model_name == 'Design2':   # CCT 的思路， 通过resnet的3D卷积模式降低尺度，然后3D ViT，效果不好
         model = Design2(in_channels=1, image_size=128, patch_size=4, frames=128, frame_patch_size=4,embedding_dim=1024)
+    elif model_name == 'Design3':  # resnet 基本块后面加 coord attention
+        model = generate_resnet_coordatt(18)
+    elif model_name == 'Design4':  # 一个基本块后面加 coord attention， 然后 ViT
+        model = generate_resnet_coordatt_vit(18)
     else:
         raise ValueError(f'Unsupported model: {model_name}')
     return model
@@ -89,7 +92,7 @@ def create_model(model_name):
 #               'ViT','cct4','ViViT','SimpleViT']
 
 if __name__ == '__main__':
-    model = create_model('SimpleViT')
+    model = create_model('Design3')
     x = torch.rand(4, 1, 128, 128, 128)
     label = torch.randint(0, 2, (4,))
     out = model(x)

@@ -71,10 +71,10 @@ for n in range(5):
 
 
         if (epoch + 1) % val_interval == 0 and (epoch + 1) >= 30:
-            eval_metrics = eval_model(model=model, dataloader=val_loader, device=device, epoch = epoch+1)
+            eval_metrics = eval_model(model=model, dataloader=val_loader, device=device, epoch = epoch)
 
             save_best_model(model, eval_metrics, best_metric, best_metric_model, args, timestamp,
-                            fold=n+1, epoch=epoch+1, metric_name='accuracy')
+                            fold=n, epoch=epoch, metric_name='accuracy')
 
     avg_metrics = eval_model(model=model, dataloader=val_loader, device=device, epoch='FINAL')
     logging.info(
