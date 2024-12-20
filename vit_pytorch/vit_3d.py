@@ -125,3 +125,10 @@ class ViT(nn.Module):
 
         x = self.to_latent(x)
         return self.mlp_head(x)
+
+if __name__ == "__main__":
+    model = ViT(image_size=32, image_patch_size=4, frames=32, frame_patch_size=4, num_classes=5, dim=128, depth=1,
+                heads=4, mlp_dim=128, pool = 'cls', channels = 3, dim_head = 32, dropout = 0.1, emb_dropout = 0.1)
+    x = torch.randn(2, 3, 32, 32, 32)
+    y = model(x)
+    print(y.shape)

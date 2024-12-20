@@ -1,11 +1,10 @@
 import math
 from functools import partial
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-
+# Resnet 经典结构，但是每一个layer后面都接上一个 coord attention3d联合多个方向的空间特征和通道注意力，加深网络
 def get_inplanes():
     return [64, 128, 256, 512]
 
@@ -208,11 +207,11 @@ class ResNet(nn.Module):
                                        layers[2],
                                        shortcut_type,
                                        stride=2)
-        self.layer4 = self._make_layer(block,
-                                       block_inplanes[3],
-                                       layers[3],
-                                       shortcut_type,
-                                       stride=2)
+        # self.layer4 = self._make_layer(block,
+        #                                block_inplanes[3],
+        #                                layers[3],
+        #                                shortcut_type,
+        #                                stride=2)
 
         self.avgpool = nn.AdaptiveAvgPool3d((1, 1, 1))
         self.fc = nn.Linear(block_inplanes[2] * block.expansion, n_classes)
@@ -308,25 +307,6 @@ def generate_model(model_depth, **kwargs):
         model = ResNet(Bottleneck, [3, 24, 36, 3], get_inplanes(), **kwargs)
 
     return model
-
-class h_sigmoid(nn.Module):
-    def __init__(self, inplace=True):
-        super(h_sigmoid, self).__init__()
-        self.relu = nn.ReLU6(inplace=inplace)  # 使用ReLU6实现
-
-    def forward(self, x):
-        return self.relu(x + 3) / 6  # 公式为ReLU6(x+3)/6，模拟Sigmoid激活函数
-
-# 定义h_swish激活函数，这是基于h_sigmoid的Swish函数变体
-class h_swish(nn.Module):
-    def __init__(self, inplace=True):
-        super(h_swish, self).__init__()
-        self.sigmoid = h_sigmoid(inplace=inplace)  # 使用上面定义的h_sigmoid
-
-    def forward(self, x):
-        return x * self.sigmoid(x)  # 公式为x * h_sigmoid(x)
-
-
 
 
 # if __name__ == '__main__':

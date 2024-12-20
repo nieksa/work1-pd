@@ -1,5 +1,5 @@
-tasks=("NCvsSWEDD" "PDvsSWEDD" "PDvsNC")
-models=("ViT" "ResNet18" "ResNet50" "C3D" "I3D" "SlowFast" "VGG" "DenseNet121" "DenseNet264")
+tasks=("PDvsSWEDD" "PDvsNC")
+models=("Design1" "Design2" "Design3")
 
 for task in "${tasks[@]}"; do
     for model in "${models[@]}"; do
