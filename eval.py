@@ -80,7 +80,7 @@ def eval_model(model, dataloader, device, epoch):
         'specificity': specificity
     }
     logging.info(
-        f"Epoch:{epoch+1} | "
+        f"Epoch:{epoch} | "
         f"Accuracy: {avg_metrics['accuracy']:.4f} | "
         f"BA: {avg_metrics['balanced_accuracy']:.4f} | "
         f"Kappa: {avg_metrics['kappa']:.4f} | "
@@ -98,7 +98,7 @@ def save_best_model(model, eval_metric, best_metric, best_metric_model, args, ti
     task = args.task
     if eval_metric[metric_name] >= best_metric[metric_name]:
         best_metric[metric_name] = eval_metric[metric_name]
-        model_path = f'./saved_models/{task}/{model_name}_{timestamp}_fold_{fold+1}_epoch_{epoch+1}_{metric_name}_{best_metric[metric_name]:.2f}.pth'
+        model_path = f'./saved_models/{task}/{model_name}_{timestamp}_fold_{fold + 1}_epoch_{epoch}_{metric_name}_{best_metric[metric_name]:.2f}.pth'
         if metric_name in best_metric_model and best_metric_model[metric_name]:
             old_model_path = best_metric_model[metric_name]
             if os.path.exists(old_model_path):
