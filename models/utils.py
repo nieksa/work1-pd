@@ -88,7 +88,7 @@ def create_model(model_name):
         model = generate_resnet_simam(18)
     elif model_name == 'Design6':   # layer + triplet attention 多轴向注意力
         model = generate_resnet_tripletattention(18)
-    elif model_name == 'Design7':
+    elif model_name == 'Design7':   # 双分支，transformer编解码256 8 8 8 concat resnet256 8 8 8 = 512 8 8 8通道融合后fc
         model = dual_mix_1(18)
     else:
         raise ValueError(f'Unsupported model: {model_name}')
