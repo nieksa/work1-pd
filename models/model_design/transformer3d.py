@@ -62,7 +62,7 @@ class Transformer3D(nn.Module):
 class MRI_Transformer(nn.Module):
     def __init__(self, in_channels=1, out_channels=1, image_size=64, dim=64, depth=4, heads=8, dim_head=8, mlp_dim=64):
         super().__init__()
-        self.embed = nn.Conv3d(in_channels, dim, kernel_size=3, padding=1)
+        self.embed = nn.Conv3d(in_channels, dim, kernel_size=1)  # kernel_size=1代替线性映射
         self.transformer = Transformer3D(dim, depth, heads, dim_head, mlp_dim, image_size)
         self.out_conv = nn.Conv3d(dim, out_channels, kernel_size=3, padding=1)
 
