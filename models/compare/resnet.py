@@ -255,6 +255,7 @@ if __name__ == "__main__":
     x = x.to(device)
     print("x size: {}".format(x.size()))
 
-    model = ResNet(BasicBlock, [2, 2, 2, 2], get_inplanes(), n_input_channels=1,n_classes=2)
+    model = ResNet(BasicBlock, [2, 2, 2, 2], get_inplanes(), n_input_channels=1,n_classes=2).to(device)
+    print(model)
     out1 = model(x)
     print("out size: {}".format(out1.size()))
