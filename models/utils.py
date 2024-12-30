@@ -94,6 +94,8 @@ def create_model(model_name):
         model = generate_resnet_transformer_voxel(18)
     elif model_name == "Design10":
         model = generate_MDL(model_depth=18,in_planes=1,num_classes=2)
+    elif model_name == "Design11":
+        model = generate_MDL_1_branch(model_depth=18,in_planes=1,num_classes=2)
     else:
         raise ValueError(f'Unsupported model: {model_name}')
     return model
@@ -103,9 +105,8 @@ def create_model(model_name):
 #               'ViT','cct4','ViViT','SimpleViT']
 
 if __name__ == '__main__':
-    model = create_model('Design10')
+    model = create_model('Design11')
     x = torch.rand(4, 1, 128, 128, 128)
     label = torch.randint(0, 2, (4,))
     out = model(x)
-    print(label)
     print(out)

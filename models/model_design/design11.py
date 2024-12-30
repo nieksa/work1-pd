@@ -7,10 +7,11 @@ from torch.nn.init import trunc_normal_
 from einops import rearrange
 # from module.scale_fusion import LocalAwareLearning
 
-# 这个是3模态的数据
-# 其实也是三个resnet分支，最多设计的是 stage上的模态fusion(LAL,三个不同shape，最终输出是4，4，4) 和 最终out的fusion (GAL)，
-# 我目前是通过copy dim=1 模拟多模态的情况，然后暂时不考虑ROI的部分
-from thop import profile
+# 魔改MDL-Net，因为我只有单模态数据。
+# 1.借鉴了原文的LAL多阶段多尺度特征融合
+# 2.从最后一个阶段使用transformer3d结合全局信息
+# 3.修改latent-space awareness learning
+# 每一个都输出128个特征，最后是384 ---> 2 类别
 import math
 import torch
 import torch.nn as nn
@@ -218,9 +219,9 @@ class SelfAdaptiveTransformer(nn.Module):
                  attention_dropout_rate=0.2, window_size=(4, 4, 4)):
         super().__init__()
         self.mda = SelfAdaptiveAttention(hidden_size=hidden_size, img_size=img_size, patch_size=patch_size,
-                                        num_heads=num_heads,
-                                        attention_dropout_rate=attention_dropout_rate, window_size=window_size,
-                                        pos_embedding=True)
+                                         num_heads=num_heads,
+                                         attention_dropout_rate=attention_dropout_rate, window_size=window_size,
+                                         pos_embedding=True)
         self.norm = nn.LayerNorm(hidden_size, eps=1e-6)
         self.mlp = Mlp(hidden_size, hidden_size * 2, dropout_rate=0.2)
 
@@ -243,8 +244,6 @@ class SelfAdaptiveTransformer(nn.Module):
         out = x2 + out
 
         return out
-
-
 
 
 class Disease_Guide_ROI(nn.Module):
@@ -296,58 +295,43 @@ class Disease_Guide_ROI(nn.Module):
         x = x.squeeze(dim=1)
 
         return x
-class FactorizedBilinearPooling(nn.Module):
+
+class FactorizedSelfBilinearPooling(nn.Module):
     def __init__(self, channels):
-        super(FactorizedBilinearPooling, self).__init__()
+        super(FactorizedSelfBilinearPooling, self).__init__()
         self.channels = channels
         self.maxpool = nn.MaxPool3d(2)
         self.avgpool = nn.AvgPool3d(2)
         self.conv1 = nn.Conv3d(channels, channels // 2, kernel_size=(1, 1, 1))
         self.conv2 = nn.Conv3d(channels // 2, channels, kernel_size=(1, 1, 1))
 
-    def forward(self, x, y, z):
-        # x,y has dimensions (b, c, h, w, d)
+    def forward(self, x):
+        # x has dimensions (b, c, h, w, d)
         b, c, h, w, d = x.size()
         x_mp = self.maxpool(x)
-        y_mp = self.maxpool(y)
-        z_mp = self.maxpool(z)
-
         x_ap = self.avgpool(x)
-        y_ap = self.avgpool(y)
-        z_ap = self.avgpool(z)
 
+        # 融合多尺度池化特征
         x = x_mp + x_ap
-        y = y_mp + y_ap
-        z = z_mp + z_ap
+        x = x.view(b, c, -1)  # (b, c, h*w*d)
 
-        x = x.view(b, c, -1)
-        y = y.view(b, c, -1)
-        z = z.view(b, c, -1)
+        # 计算外积，增加特征交互
+        outer = torch.einsum('bci,bcj->bcij', x, x)  # (b, c, h*w*d, h*w*d)
+        outer = outer.contiguous().view(b, c, -1)  # 展平成 (b, c, (h*w*d)^2)
 
-        xy = x + y
-        xz = x + z
-        yz = y + z
-        # compute outer product of x, y
-        outer_xy = torch.einsum('bci,bcj->bcij', xy, xy)
-        outer_xz = torch.einsum('bci,bcj->bcij', xz, xz)
-        outer_yz = torch.einsum('bci,bcj->bcij', yz, yz)
-
-        outer = outer_xy + outer_yz + outer_xz
-        outer = outer.contiguous().view(b, c, -1)
-
-        # outer = outer.view(b, c, h*h, w*w, d*d)
-        # pooled = self.conv2(torch.relu(self.conv1(outer)))
-        pooled = outer.sum(dim=2)
+        # 特征降维与归一化
+        pooled = outer.sum(dim=2)  # (b, c)
         pooled = F.normalize(pooled, dim=-1)
 
         return pooled
-    
+
+
 class LocalAwareLearning(nn.Module):
     def __init__(self, in_chans1, in_chans2, in_chans3):
         super().__init__()
         self.conv1 = nn.Conv3d(in_chans1, in_chans2, 3, 2, 1)
         self.conv2 = nn.Conv3d(in_chans2, in_chans3, 3, 2, 1)
-        self.conv3 = nn.Conv3d(in_chans3, in_chans3*2, 3, 2, 1)
+        self.conv3 = nn.Conv3d(in_chans3, in_chans3 * 2, 3, 2, 1)
         self.s1 = nn.Sequential(
             nn.Conv3d(in_chans1, in_chans1, 1),
             nn.Sigmoid(),
@@ -475,6 +459,69 @@ class Bottleneck(nn.Module):
         return out
 
 
+class SelfAttention3D(nn.Module):
+    def __init__(self, dim, heads=8, dim_head=64):
+        super().__init__()
+        self.heads = heads
+        self.scale = dim_head ** -0.5
+        self.to_qkv = nn.Conv3d(dim, dim * 3, kernel_size=1, bias=False)
+        self.proj = nn.Conv3d(dim, dim, kernel_size=1)
+
+    def forward(self, x):
+        b, c, d, h, w = x.shape
+        qkv = self.to_qkv(x).chunk(3, dim=1)  # (b, 3*dim, d, h, w)
+        q, k, v = map(lambda t: t.reshape(b, self.heads, c // self.heads, d * h * w), qkv)
+        # (batch, heads, heads_dim, seq_len)
+        attn = torch.einsum('bhid,bhjd->bhij', q, k) * self.scale
+        attn = attn.softmax(dim=-1)
+        out = torch.einsum('bhij,bhjd->bhid', attn, v)
+        out = out.reshape(b, c, d, h, w)
+        return self.proj(out)
+
+
+class TransformerBlock3D(nn.Module):
+    def __init__(self, dim, heads=8, dim_head=64, mlp_dim=256, image_size=64):
+        super().__init__()
+        self.attn = SelfAttention3D(dim, heads, dim_head)
+        self.norm1 = nn.LayerNorm([dim, image_size, image_size, image_size])
+        self.norm2 = nn.LayerNorm([dim, image_size, image_size, image_size])
+
+        self.mlp = nn.Sequential(
+            nn.Conv3d(dim, mlp_dim, kernel_size=1),
+            nn.GELU(),
+            nn.Conv3d(mlp_dim, dim, kernel_size=1)
+        )
+
+    def forward(self, x):
+        x = self.norm1(x + self.attn(x))  # Attention + Residual
+        x = self.norm2(x + self.mlp(x))  # MLP + Residual
+        return x
+
+
+class Transformer3D(nn.Module):
+    def __init__(self, dim, depth, heads, dim_head, mlp_dim, image_size):
+        super().__init__()
+        self.layers = nn.ModuleList([
+            TransformerBlock3D(dim, heads, dim_head, mlp_dim, image_size) for _ in range(depth)
+        ])
+
+    def forward(self, x):
+        for layer in self.layers:
+            x = layer(x)
+        return x
+
+
+class MRI_Transformer(nn.Module):
+    def __init__(self, in_channels=1, image_size=64, dim=64, depth=4, heads=8, dim_head=8, mlp_dim=64):
+        super().__init__()
+        self.embed = nn.Conv3d(in_channels, dim, kernel_size=1)  # kernel_size=1代替线性映射
+        self.transformer = Transformer3D(dim, depth, heads, dim_head, mlp_dim, image_size)
+
+    def forward(self, x):
+        x = self.embed(x)  # Embedding block
+        x = self.transformer(x)  # Transformer blocks
+        return x
+
 class MDL_Net(nn.Module):
 
     def __init__(self,
@@ -523,17 +570,17 @@ class MDL_Net(nn.Module):
                                        stride=2)
 
         self.global_fusion = SelfAdaptiveTransformer(hidden_size=block_inplanes[3], img_size=(128, 128, 128),
-                                                       patch_size=(32, 32, 32), num_heads=4, attention_dropout_rate=0.2,
-                                                       window_size=(2, 2, 2))
+                                                     patch_size=(32, 32, 32), num_heads=4, attention_dropout_rate=0.2,
+                                                     window_size=(2, 2, 2))
 
         self.local_fusion = LocalAwareLearning(in_chans1=block_inplanes[0] * block.expansion,
-                           in_chans2=block_inplanes[1] * block.expansion,
-                           in_chans3=block_inplanes[2] * block.expansion)
-        
-        self.fbc = FactorizedBilinearPooling(block_inplanes[3] * block.expansion)
+                                               in_chans2=block_inplanes[1] * block.expansion,
+                                               in_chans3=block_inplanes[2] * block.expansion)
+
+        self.fsbp = FactorizedSelfBilinearPooling(block_inplanes[3] * block.expansion)
         self.avgpool = nn.AdaptiveAvgPool3d((1, 1, 1))
         self.maxpool = nn.MaxPool3d(2)
-        
+
         self.fc_roi = nn.Linear(block_inplanes[3] * block.expansion * 3, 90)
         self.fc_cls2roi = nn.Linear(n_classes, 90)
         self.roi = Disease_Guide_ROI(90, 6, i=iter)
@@ -543,7 +590,7 @@ class MDL_Net(nn.Module):
         self.roi_fc = nn.Linear(90, n_classes)
 
         self.pred_fc = nn.Linear(block_inplanes[3] * block.expansion * 3, n_classes)
-
+        self.transformer3d = MRI_Transformer(in_channels=128,image_size=4,dim=128,depth=4,heads=8,dim_head=16,mlp_dim=512)
         for m in self.modules():
             if isinstance(m, nn.Conv3d):
                 nn.init.kaiming_normal_(m.weight,
@@ -610,58 +657,46 @@ class MDL_Net(nn.Module):
         return s1, s2, s3, s4
 
     def forward(self, x):
-        # Upsample and Split Multimodal Feature
-        # x = F.interpolate(x, [128, 128, 128], mode='trilinear')
-        # x1 = x[:, 0, :, :, :]
-        # x1 = torch.unsqueeze(x1, dim=1)    # The unsqueeze operation is to add channel of single-modal dataset
-        # x2 = x[:, 1, :, :, :]
-        # x2 = torch.unsqueeze(x2, dim=1)
-        # x3 = x[:, 2, :, :, :]
-        # x3 = torch.unsqueeze(x3, dim=1)
-        x1 = x2 = x3 = x
+
         # Extract single modal feature
-        x1_s1, x1_s2, x1_s3, x1_s4 = self.feature_forward(x1)
-        x2_s1, x2_s2, x2_s3, x2_s4 = self.feature_forward(x2)
-        x3_s1, x3_s2, x3_s3, x3_s4 = self.feature_forward(x3)
+        x1_s1, x1_s2, x1_s3, x1_s4 = self.feature_forward(x)
 
         # Global-aware Learning
-        # 这个global fusion是融合了多模态数据，原文有3个分支，最后会有3个128，4， 4， 4 ----> 64, 128
+        # 把这个模块的作用看作是空间感知，用3D transformer来把单位像素点作为voxel 然后自注意力机制
+        # 输入是128，4，4，4，这样seq就是64，dim是128，然后嵌入到256,64或者512，64，最后输出再还原128,4,4,4
+        # 这样我可以说这个模块是从最后一层特征图中学习了体素级别的关系
         x1_s4 = self.dropout(x1_s4)
-        x2_s4 = self.dropout(x2_s4)
-        x3_s4 = self.dropout(x3_s4)
         b, c, h, w, d = x1_s4.size()
-        fusion = self.global_fusion(x1_s4, x2_s4, x3_s4)    # 64, 128
-        fusion = rearrange(fusion, 'b (h w d) c->b c h w d', h=h, w=w, d=d) # 128, 4, 4, 4
-        fusion = self.avgpool(fusion)   # 128, 1, 1, 1
-        out_global = fusion.view(fusion.shape[0], -1)   # ,128 特征
+        fusion = self.transformer3d(x1_s4) # x1_s4经过某种3D注意力机制，128, 4, 4, 4 ---> 128, 4, 4, 4
+        fusion = self.avgpool(fusion)  # 128, 1, 1, 1
+        out_global = fusion.view(fusion.shape[0], -1)  # ,128 特征
 
         # Latent-space aware Learning
-        # 感觉上类似GAL ，也是3个 128，4，4，4 合并操作输出   ----> 128
-        out_latent = self.fbc(x1_s4, x2_s4, x3_s4)  # ,128
-        out = torch.cat((out_global, out_latent), dim=1)    # GAL+LAL 都是用最后一个stage来获得（，128）的输出。cat后变 (, 256)
+        # 这里也要设计一个 128， 4， 4， 4 变成 ,128 的操作
+        out_latent = self.fsbp(x1_s4)
+        out = torch.cat((out_global, out_latent), dim=1)  # GAL+LAL 都是用最后一个stage来获得（，128）的输出。cat后变 (, 256)
 
         # Local-aware Learning
-        # 总的来说是先做模态性融合，最后阶段性融合
-        # out是单个模态不同resnet的阶段性特征 这个可以算作模态性融合
-        out_s1 = x1_s1 + x2_s1 + x3_s1
-        out_s2 = x1_s2 + x2_s2 + x3_s2
-        out_s3 = x1_s3 + x2_s3 + x3_s3
-        # out_s4 = x1_s4 + x2_s4 + x3_s4
+        # out是不同resnet阶段的输出特征图，size也不一样，用于阶段性融合
+        out_s1 = x1_s1
+        out_s2 = x1_s2
+        out_s3 = x1_s3
         # local fusion是 阶段性融合
-        fusion_l = self.local_fusion(out_s1, out_s2, out_s3)    # 3个不同阶段不同size的特征图，通过local_fusion后变成resnet最终输出的 128, 4, 4, 4
-        fusion_l = self.avgpool(fusion_l)   # 128, 1, 1, 1
-        fusion_l = fusion_l.view(fusion_l.shape[0], -1) # ,128
-        out = torch.cat((out, fusion_l), dim=1) # ,384
+        fusion_l = self.local_fusion(out_s1, out_s2,
+                                     out_s3)  # 3个不同阶段不同size的特征图，通过local_fusion后变成resnet最终输出的 128, 4, 4, 4
+        fusion_l = self.avgpool(fusion_l)  # 128, 1, 1, 1
+        fusion_l = fusion_l.view(fusion_l.shape[0], -1)  # ,128
+        out = torch.cat((out, fusion_l), dim=1)  # ,384
         class_out = self.pred_fc(out)
 
         # Diseased-incuded ROI Learning
         # 输出真正的分类 和 ROI区域关注点，结合的是特征图和类别映射
-        f_roi = self.fc_roi(out).unsqueeze(dim=1)   # ,384 ---> 1,90 把上面的特征图变为90个ROI的权重
-        cls_roi = self.fc_cls2roi(class_out).unsqueeze(dim=1)   # 线性层从类别反映射回ROI权重 1,90
+        f_roi = self.fc_roi(out).unsqueeze(dim=1)  # ,384 ---> 1,90 把上面的特征图变为90个ROI的权重
+        cls_roi = self.fc_cls2roi(class_out).unsqueeze(dim=1)  # 线性层从类别反映射回ROI权重 1,90
         roi = self.roi(f_roi, cls_roi)  # 结合上面两个1,90 回推 ,90 各个roi的权重
-        roi_cls = self.roi_fc(roi) # 新权重再反映射回类别
-        
-        # Classification 
+        roi_cls = self.roi_fc(roi)  # 新权重再反映射回类别
+
+        # Classification
         class_out = class_out + roi_cls
         return class_out
         # return class_out, roi
@@ -672,31 +707,31 @@ def generate_model(model_depth, in_planes, num_classes, **kwargs):
 
     if model_depth == 10:
         model = MDL_Net(BasicBlock, [1, 1, 1, 1], get_inplanes(), n_input_channels=in_planes,
-                      n_classes=num_classes,
-                      **kwargs)
+                        n_classes=num_classes,
+                        **kwargs)
     elif model_depth == 18:
         model = MDL_Net(BasicBlock, [2, 2, 2, 2], get_inplanes(), n_input_channels=in_planes,
-                      n_classes=num_classes,
-                      **kwargs)
+                        n_classes=num_classes,
+                        **kwargs)
     elif model_depth == 34:
         model = MDL_Net(BasicBlock, [3, 4, 6, 3], get_inplanes(), n_input_channels=in_planes,
-                      n_classes=num_classes,
-                      **kwargs)
+                        n_classes=num_classes,
+                        **kwargs)
     elif model_depth == 50:
         model = MDL_Net(Bottleneck, [3, 4, 6, 3], get_inplanes(), n_input_channels=in_planes,
-                      n_classes=num_classes,
-                      **kwargs)
+                        n_classes=num_classes,
+                        **kwargs)
     elif model_depth == 101:
         model = MDL_Net(Bottleneck, [3, 4, 23, 3], get_inplanes(), n_input_channels=in_planes,
-                      n_classes=num_classes,
-                      **kwargs)
+                        n_classes=num_classes,
+                        **kwargs)
     elif model_depth == 152:
         model = MDL_Net(Bottleneck, [3, 8, 36, 3], get_inplanes(), n_input_channels=in_planes,
-                      n_classes=num_classes,
-                      **kwargs)
+                        n_classes=num_classes,
+                        **kwargs)
     elif model_depth == 200:
         model = MDL_Net(Bottleneck, [3, 24, 36, 3], get_inplanes(), n_input_channels=in_planes, n_classes=num_classes,
-                      **kwargs)
+                        **kwargs)
 
     return model
 
@@ -730,9 +765,9 @@ if __name__ == '__main__':
     # flops, params = profile(model, (x,))
     # print('flops: %.2f M, params: %.2f M' % (flops / 1000000.0, params / 1000000.0))
     # print('time:{}s'.format(time_over - time_start))
-
-    # 简易测试 
-    x = torch.randn(3,1,128,128,128)
-    model = generate_model(model_depth=18,in_planes=1,num_classes=2)
-    out = model(x)
-    print(out)
+    # 简易测试
+    x = torch.randn(3, 1, 128, 128, 128)
+    model = generate_model(model_depth=18, in_planes=1, num_classes=2)
+    class_out, roi = model(x)
+    print(class_out)
+    print(roi.shape)

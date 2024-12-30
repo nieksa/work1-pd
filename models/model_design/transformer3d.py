@@ -19,7 +19,7 @@ class SelfAttention3D(nn.Module):
         b, c, d, h, w = x.shape
         qkv = self.to_qkv(x).chunk(3, dim=1)  # (b, 3*dim, d, h, w)
         q, k, v = map(lambda t: t.reshape(b, self.heads, c // self.heads, d * h * w), qkv)
-
+        # (batch, heads, heads_dim, seq_len)
         attn = torch.einsum('bhid,bhjd->bhij', q, k) * self.scale
         attn = attn.softmax(dim=-1)
         out = torch.einsum('bhij,bhjd->bhid', attn, v)
@@ -60,20 +60,23 @@ class Transformer3D(nn.Module):
 
 
 class MRI_Transformer(nn.Module):
-    def __init__(self, in_channels=1, out_channels=1, image_size=64, dim=64, depth=4, heads=8, dim_head=8, mlp_dim=64):
+    def __init__(self, in_channels=1, image_size=64, dim=64, depth=4, heads=8, dim_head=8, mlp_dim=64):
         super().__init__()
         self.embed = nn.Conv3d(in_channels, dim, kernel_size=1)  # kernel_size=1代替线性映射
         self.transformer = Transformer3D(dim, depth, heads, dim_head, mlp_dim, image_size)
-        self.out_conv = nn.Conv3d(dim, out_channels, kernel_size=3, padding=1)
 
     def forward(self, x):
         x = self.embed(x)  # Embedding block
         x = self.transformer(x)  # Transformer blocks
-        x = self.out_conv(x)  # Project back to original channels
         return x
 
 if __name__ == '__main__':
-    model = MRI_Transformer(in_channels=64, out_channels=128, image_size=32, dim=64, depth=1, heads=2, dim_head=32, mlp_dim=64)
-    mri_data = torch.randn(2, 64, 32, 32, 32)  # batch_size=2, channel=1, 64x64x64
+    batch_size = 2
+    input_channels = 128
+    output_channels = 128
+    image_size = 4
+    model = MRI_Transformer(in_channels=input_channels, image_size=image_size, dim=output_channels, depth=3, heads=4, dim_head=4, mlp_dim=64)
+    mri_data = torch.randn(batch_size, input_channels, image_size, image_size, image_size)
     output = model(mri_data)
+    print(mri_data.shape)
     print(output.shape)
