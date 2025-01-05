@@ -55,7 +55,7 @@ def eval_model(model, dataloader, device, epoch):
     all_probs = torch.tensor(all_probs)
     cm = confusion_matrix(all_labels, all_preds)
     result = calculate_metrics(cm)
-    print(cm)
+    # print(cm)
     accuracy = result['accuracy']
     balanced_accuracy = result['balanced_accuracy']
     kappa = result['kappa']

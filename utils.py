@@ -16,7 +16,7 @@ def setup_training_environment():
     parser.add_argument('--task', type=str, default='PDvsNC', choices=['PDvsNC', 'PDvsSWEDD', 'NCvsSWEDD'])
     parser.add_argument('--train_bs', type=int, default=16, help='I3D C3D cuda out of memory.')
     parser.add_argument('--val_bs', type=int, default=16, help='densenet cuda out of memory.')
-    parser.add_argument('--num_workers', type=int, default=16, help='Number of CPU workers.')
+    parser.add_argument('--num_workers', type=int, default=4, help='Number of CPU workers.')
 
     # 解析命令行参数
     args = parser.parse_args()

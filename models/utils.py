@@ -1,10 +1,9 @@
 import torch
-# from torch.onnx.symbolic_opset9 import numel
 # from monai.networks.nets.classifier import Classifier, Discriminator, Critic
-from vit_pytorch.vit_3d import ViT
-from vit_pytorch.cct_3d import cct_4
-from vit_pytorch.vivit import ViT as ViViT
-from vit_pytorch.simple_vit_3d import SimpleViT
+from models.vit_pytorch.vit_3d import ViT
+from models.vit_pytorch.cct_3d import cct_4
+from models.vit_pytorch.vivit import ViT as ViViT
+from models.vit_pytorch.simple_vit_3d import SimpleViT
 
 from models.compare.slowfast import SlowFast
 from models.compare.C3D import C3D
@@ -76,10 +75,6 @@ def create_model(model_name):
             channels = 1,
             dim_head = 64
         )
-    elif model_name == 'Design1':   # 双重ResNet，提取大体素和小体素特征， concat后ViT，这个模型太大跑不动
-        model = Design1(in_channels=1, out_channel=128, class_num=2, num_blocks=[1,1,1])
-    elif model_name == 'Design2':   # CCT 的思路，通过三个resnet的3D卷积块降低尺度256, 8, 8, 8，然后ViT,patch1*1*1作为一个voxel
-        model = generate_resnet_vit(18)
     elif model_name == 'Design3':  # Resnet每一个layer后面都接上一个 coord attention3d联合多个方向的空间特征和通道注意力
         model = generate_resnet_coordatt(18)
     elif model_name == 'Design4':   # layer + cot attention
@@ -88,14 +83,10 @@ def create_model(model_name):
         model = generate_resnet_simam(18)
     elif model_name == 'Design6':   # layer + triplet attention 多轴向注意力
         model = generate_resnet_tripletattention(18)
-    elif model_name == 'Design7':   # 双分支，transformer编解码256 8 8 8 concat resnet256 8 8 8 = 512 8 8 8通道融合后fc
-        model = dual_mix_1(18)
-    elif model_name == 'Design8':
-        model = generate_resnet_transformer_voxel(18)
     elif model_name == "Design10":
         model = generate_MDL(model_depth=18,in_planes=1,num_classes=2)
-    elif model_name == "Design11":
-        model = generate_MDL_1_branch(model_depth=18,in_planes=1,num_classes=2)
+    elif model_name == "MIL":
+        model = resnet_mil(18)
     else:
         raise ValueError(f'Unsupported model: {model_name}')
     return model
@@ -105,7 +96,7 @@ def create_model(model_name):
 #               'ViT','cct4','ViViT','SimpleViT']
 
 if __name__ == '__main__':
-    model = create_model('Design11')
+    model = create_model('MIL')
     x = torch.rand(4, 1, 128, 128, 128)
     label = torch.randint(0, 2, (4,))
     out = model(x)
