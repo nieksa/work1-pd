@@ -7,3 +7,5 @@ runs/*
 Miniconda3-latest-Linux-x86_64.sh
 *.whl
 venv/*
+.idea/
+__pycache__/
