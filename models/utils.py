@@ -13,6 +13,7 @@ from models.compare.resnet import ResNet, Bottleneck, BasicBlock, get_inplanes
 from models.compare.vgg import VGG
 
 from models.model_design import *
+# from llm_qwen2 import create_qwen2
 
 # 有提升的design
 # 4 5
@@ -87,6 +88,10 @@ def create_model(model_name):
         model = generate_MDL(model_depth=18,in_planes=1,num_classes=2)
     elif model_name == "MIL":
         model = resnet_mil(18)
+    elif model_name == "vit_resnet_fusion":
+        model = vit_resnet_fusion(18)
+    # elif model_name == "llm_qwen2":
+    #     model = create_qwen2()
     else:
         raise ValueError(f'Unsupported model: {model_name}')
     return model
@@ -96,8 +101,7 @@ def create_model(model_name):
 #               'ViT','cct4','ViViT','SimpleViT']
 
 if __name__ == '__main__':
-    model = create_model('MIL')
-    x = torch.rand(4, 1, 128, 128, 128)
-    label = torch.randint(0, 2, (4,))
+    model = create_model('llm_qwen2')
+    x = torch.rand(1, 1, 128, 128, 128)
     out = model(x)
     print(out)

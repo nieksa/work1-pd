@@ -14,7 +14,7 @@ from statistics import mean, stdev
 from eval import eval_model, save_best_model
 
 test = False
-val_start = 10
+val_start = 0
 val_interval = 1
 patience = 5
 
@@ -24,12 +24,11 @@ all_metrics = {metric: [] for metric in ['accuracy', 'balanced_accuracy', 'kappa
 for n in range(5):
     logging.info(f'Fold {n+1} Starting')
 
-    train_dataset, val_dataset, train_loader, val_loader = load_data(args, n=n,
+    train_dataset, val_dataset, train_loader, val_loader ,class_weight= load_data(args, n=n,
                                                                      batch_size_train=args.train_bs,
                                                                      batch_size_val=args.val_bs,
                                                                      test = test, num_workers=args.num_workers)
-    loss_function = torch.nn.CrossEntropyLoss()
-    
+    loss_function = torch.nn.CrossEntropyLoss(weight=class_weight)
     model = create_model(args.model_name).to(device)
     if torch.cuda.device_count() > 1:
         device_ids = list(range(torch.cuda.device_count()))

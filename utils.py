@@ -10,9 +10,9 @@ def setup_training_environment():
     # 解析命令行参数
     parser = argparse.ArgumentParser(description='Training script for models.')
     parser.add_argument('--seed', type=int, default=1337, help='Random seed for reproducibility.')
-    parser.add_argument('--epochs', type=int, default=50, help='Number of epochs to train.')
+    parser.add_argument('--epochs', type=int, default=5, help='Number of epochs to train.')
     parser.add_argument('--lr', type=float, default=1e-4, help='Initial learning rate.')
-    parser.add_argument('--model_name', type=str, default='Design1', help='Name of the model to use.')
+    parser.add_argument('--model_name', type=str, default='vit_resnet_fusion', help='Name of the model to use.')
     parser.add_argument('--task', type=str, default='PDvsNC', choices=['PDvsNC', 'PDvsSWEDD', 'NCvsSWEDD'])
     parser.add_argument('--train_bs', type=int, default=16, help='I3D C3D cuda out of memory.')
     parser.add_argument('--val_bs', type=int, default=16, help='densenet cuda out of memory.')

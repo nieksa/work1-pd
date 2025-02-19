@@ -52,6 +52,11 @@ def load_data(args, n=0, batch_size_train=16, batch_size_val=16, test = False, n
     train_labels_unique, train_labels_count = torch.unique(train_y, return_counts=True)
     test_labels_unique, test_labels_count = torch.unique(test_y, return_counts=True)
 
+    total_sample = train_labels_count.sum()
+    class_weights = total_sample / (len(train_labels_count) * train_labels_count)
+    # 转换数据类型并放入正确设备
+    class_weights = class_weights.to(dtype=torch.float32, device=train_y.device)
+
     logging.info(f'Training labels distribution: {dict(zip(train_labels_unique.tolist(), train_labels_count.tolist()))}')
     logging.info(f'Testing labels distribution: {dict(zip(test_labels_unique.tolist(), test_labels_count.tolist()))}')
 
@@ -63,4 +68,4 @@ def load_data(args, n=0, batch_size_train=16, batch_size_val=16, test = False, n
     train_loader = DataLoader(train_dataset, batch_size=batch_size_train, shuffle=True, drop_last=True, num_workers=num_workers)
     val_loader = DataLoader(val_dataset, batch_size=batch_size_val, shuffle=False, num_workers=num_workers)
 
-    return train_dataset, val_dataset, train_loader, val_loader
+    return train_dataset, val_dataset, train_loader, val_loader, class_weights
